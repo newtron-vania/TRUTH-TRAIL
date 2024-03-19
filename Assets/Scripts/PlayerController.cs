@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    Stop stop;
 
     // 스피드 조정 변수
     [SerializeField]
@@ -12,18 +13,22 @@ public class PlayerController : MonoBehaviour
     private float runSpeed;
     [SerializeField]
     private float crouchSpeed;
+    [SerializeField]
+    private float slowSpeed;
 
     private float applySpeed;
 
     [SerializeField]
     private float jumpForce;
 
+    [SerializeField]
+    private GameObject inventoryUI;
 
     // 상태 변수
     private bool isRun = false;
     private bool isCrouch = false;
     private bool isGround = true;
-
+    private bool isSlow = false;
 
 
     // 앉았을 때 얼마나 앉을지 결정하는 변수.
@@ -67,6 +72,8 @@ public class PlayerController : MonoBehaviour
         // 초기화.
         originPosY = theCamera.transform.localPosition.y;
         applyCrouchPosY = originPosY;
+
+        stop = this.GetComponent<Stop>();
     }
 
 
@@ -78,12 +85,20 @@ public class PlayerController : MonoBehaviour
 
         IsGround();
         TryJump();
+        TrySlow();
         TryRun();
-        TryCrouch();
-        Move();
-        CharacterRotation();
-        CameraRotation();
-
+        //TryCrouch();
+        if(Time.timeScale != 0)
+        {
+            Move();
+            if(!inventoryUI.activeSelf)
+            {
+                CharacterRotation();
+                CameraRotation();
+            }
+            
+        }
+        
 
     }
 
@@ -136,6 +151,7 @@ public class PlayerController : MonoBehaviour
         theCamera.transform.localPosition = new Vector3(0, applyCrouchPosY, 0f);
     }
 
+   
 
     // 지면 체크.
     private void IsGround()
@@ -158,10 +174,6 @@ public class PlayerController : MonoBehaviour
     private void Jump()
     {
 
-        // 앉은 상태에서 점프시 앉은 상태 해제.
-        if (isCrouch)
-            Crouch();
-
         myRigid.velocity = transform.up * jumpForce;
     }
 
@@ -182,8 +194,6 @@ public class PlayerController : MonoBehaviour
     // 달리기 실행
     private void Running()
     {
-        if (isCrouch)
-            Crouch();
 
         isRun = true;
         applySpeed = runSpeed;
@@ -198,6 +208,31 @@ public class PlayerController : MonoBehaviour
     }
 
 
+    private void TrySlow()
+    {
+        if (Input.GetKey(KeyCode.LeftControl))
+        {
+            WalkSlow();
+        }
+        if (Input.GetKeyUp(KeyCode.LeftControl))
+        {
+            WalkSlowCancel();
+        }
+    }
+    private void WalkSlow()
+    {
+        isSlow = true;
+        applySpeed = slowSpeed;
+    }
+
+    private void WalkSlowCancel()
+    {
+        isSlow = false;
+        applySpeed = walkSpeed;
+    }
+
+
+
     // 움직임 실행
     private void Move()
     {
@@ -208,7 +243,7 @@ public class PlayerController : MonoBehaviour
         Vector3 _moveHorizontal = transform.right * _moveDirX;
         Vector3 _moveVertical = transform.forward * _moveDirZ;
 
-        Vector3 _velocity = (_moveHorizontal + _moveVertical).normalized * applySpeed;
+        Vector3 _velocity = (_moveHorizontal + _moveVertical).normalized * applySpeed * stop.PlayertimeScale;
 
         myRigid.MovePosition(transform.position + _velocity * Time.deltaTime);
     }
@@ -219,7 +254,7 @@ public class PlayerController : MonoBehaviour
 
         float _yRotation = Input.GetAxisRaw("Mouse X");
         mouseXPos = _yRotation;
-        Vector3 _characterRotationY = new Vector3(0f, _yRotation, 0f) * lookSensitivity;
+        Vector3 _characterRotationY = new Vector3(0f, _yRotation, 0f) * lookSensitivity * stop.PlayertimeScale;
         myRigid.MoveRotation(myRigid.rotation * Quaternion.Euler(_characterRotationY));
     }
 
@@ -230,7 +265,7 @@ public class PlayerController : MonoBehaviour
     {
         float _xRotation = Input.GetAxisRaw("Mouse Y");
         mouseYPos = _xRotation;
-        float _cameraRotationX = _xRotation * lookSensitivity;
+        float _cameraRotationX = _xRotation * lookSensitivity * stop.PlayertimeScale;
         currentCameraRotationX -= _cameraRotationX;
         currentCameraRotationX = Mathf.Clamp(currentCameraRotationX, -cameraRotationLimit, cameraRotationLimit);
 
